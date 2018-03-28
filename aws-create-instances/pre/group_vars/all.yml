@@ -1,0 +1,13 @@
+ubuntu_ami: ami-1e339e71
+centos_ami: ami-7cbc6e13
+aws_region: eu-central-1
+aws_vpc_id: vpc-d25171ba
+aws_key_name: dmp-api-beeline
+aws_env: dmpapi
+private_domain: ec1.vipdmp.aws
+vpn_prefix: 10.43.93
+vpn_network: '{{vpn_prefix}}.0/24'
+aws_admins:
+  - tchu
+aws_subnet_ids:
+  a: subnet-45ef1a2e

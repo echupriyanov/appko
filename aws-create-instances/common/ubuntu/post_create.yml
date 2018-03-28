@@ -1,0 +1,33 @@
+---
+  - name: set hostname
+    hostname: name='{{sysname}}.{{private_domain}}'
+
+  - name: update system
+    apt: update_cache=yes upgrade=dist
+
+  - name: install useful packages
+    apt: pkg={{item}} state=present
+    with_items:
+      - vim-nox
+      - python-pip
+      - ntp
+
+  - name: install jq
+    apt: pkg=jq state=present
+
+  - name: install AWS CLI
+    pip: name=awscli state=present
+
+  - name: update kernel
+    apt: pkg=linux-image-extra-virtual-lts-xenial state=present
+
+
+  # - name: restart machine
+  #   command: shutdown -r now "Ansible updates triggered"
+  #   async: 0
+  #   poll: 0
+  #   ignore_errors: true
+  #
+  # - name: waiting for server to come back
+  #   local_action: wait_for host="{{ inventory_hostname }}" port=22 state=started
+  #   become: false

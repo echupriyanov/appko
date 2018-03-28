@@ -1,0 +1,53 @@
+---
+  - hosts: localhost
+    connection: local
+    gather_facts: False
+    vars:
+      aws_key_name: dmp-api-beeline
+      aws_env: dmp-env
+      instance_subnet: '{{aws_subnet_ids["a"]}}'
+      instance_base_ami: '{{centos_ami}}'
+      instance_type: t2.small
+      instance_sgs:
+        - dmp-env
+      instance_role: sandbox
+      instance_profile: ec2_dmp
+      # hostgroup: '{{role}}'
+      instance_name: sandbox
+      instance_root_size: 32
+      id_start: 1
+      id_end: 1
+    vars_files:
+      - ../common/vars.yml
+
+    tasks:
+      - name: create an instance
+        include: ../common/create_instances.yml
+
+      # - debug: msg={{ groups['launched']|map('extract', hostvars, 'private_ip')|list }}
+      # - debug: msg={{ groups['launched']|map('extract', hostvars, 'public_ip')|list }}
+
+      - name: create inventories folder if it doesn't exists yet
+        file: dest=inventories state=directory
+
+      - ec2_instance_facts:
+          region: "{{aws_region}}"
+          filters:
+            instance-state-name: running
+            subnet-id: '{{instance_subnet}}'
+            "tag:Role": '{{instance_role}}'
+        register: nodes
+
+      - debug: var=nodes
+
+      - template: src=../common/templates/hosts.j2 dest=inventories/{{instance_role}}
+
+  - name: Configure instance(s)
+    hosts: launched
+    become: True
+    gather_facts: True
+    vars_files:
+      - ../common/vars.yml
+    tasks:
+      - name: update instances
+        include: ../common/redhat7/post_create.yml

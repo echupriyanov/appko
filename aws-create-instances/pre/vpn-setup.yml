@@ -1,0 +1,58 @@
+---
+  - hosts: tag_Name_gateway
+    become: true
+
+    tasks:
+      - name: enable ip forwarding
+        sysctl: name=net.ipv4.ip_forward value=1 state=present reload=yes
+      - name: install packages
+        apt: pkg={{item}} state=present update_cache=yes
+        with_items:
+          - openvpn
+          - easy-rsa
+          - dnsmasq
+
+      - name: link easy-rsa to vpn
+        file:
+          src: /usr/share/easy-rsa
+          dest: /etc/openvpn/easy-rsa
+          state: link
+
+      - name: deploy vpn server config file
+        template: src=templates/vpn/{{item}}.j2 dest=/etc/openvpn/{{item}}
+        with_items:
+          - server.conf
+
+      - name: copy key and certificates
+        copy: src=easy-rsa/keys/{{item}} dest=/etc/openvpn/{{item}}
+        with_items:
+          - ca.crt
+          - server.crt
+          - server.key
+          - ta.key
+          - dh2048.pem
+
+      - name: create folder for client configs
+        file: dest=/etc/openvpn/easy-rsa/configs state=directory mode=0600
+
+      - name: copy script to generate client configs
+        copy:
+          src: "easy-rsa/{{item}}"
+          dest: "/etc/openvpn/easy-rsa/"
+        with_items:
+          - configs
+          - keys
+          - vars
+
+      - name: set exec permissions to gencert.sh
+        file: dest=/etc/openvpn/easy-rsa/configs/gencert.sh mode=0700
+
+      - name: let dnsmasq answer queries from VPN
+        copy: src=dnsmasq-hack.conf dest=/etc/dnsmasq.d/
+
+      - name: (re)start services
+        service: name={{item}} state=restarted enabled=true
+        with_items:
+          - openvpn
+          - openvpn@server
+          - dnsmasq

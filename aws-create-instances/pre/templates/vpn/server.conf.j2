@@ -1,0 +1,61 @@
+proto tcp
+port 443
+#proto udp
+#port 60002
+dev tun
+ca ca.crt
+cert server.crt
+key server.key
+dh dh2048.pem
+server {{vpn_prefix}}.0 255.255.255.0
+ifconfig-pool-persist ipp.txt
+
+client-to-client
+push "route 10.11.0.0 255.255.0.0"
+push "dhcp-option DNS {{vpn_prefix}}.1"
+push "dhcp-option DOMAIN {{private_domain}}"
+keepalive 10 120
+
+tls-auth ta.key 0 # This file is secret
+
+# Select a cryptographic cipher.
+# This config item must be copied to
+# the client config file as well.
+;cipher BF-CBC        # Blowfish (default)
+;cipher AES-128-CBC   # AES
+;cipher DES-EDE3-CBC  # Triple-DES
+
+comp-lzo
+
+persist-key
+persist-tun
+
+# Output a short status file showing
+# current connections, truncated
+# and rewritten every minute.
+status openvpn-status.log
+
+log-append  /var/log/openvpn.log
+
+# Set the appropriate level of log
+# file verbosity.
+#
+# 0 is silent, except for fatal errors
+# 4 is reasonable for general usage
+# 5 and 6 can help to debug connection problems
+# 9 is extremely verbose
+verb 4
+
+# Silence repeating messages.  At most 20
+# sequential messages of the same message
+# category will be output to the log.
+mute 20
+
+# CRL for blocking users
+#crl-verify easy-rsa/keys/crl.pem
+sndbuf 0
+rcvbuf 0
+tun-mtu 1400
+tun-mtu-extra 32
+mssfix 1450
+tcp-nodelay

@@ -1,0 +1,30 @@
+---
+  - name: add elrepo RPM GPG key
+    rpm_key:
+      key: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+      state: present
+
+  - name: setup EL Repo
+    yum:
+      pkg: http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+      state: present
+
+  - name: install Linux Kernel v.4
+    yum:
+      name: kernel-ml
+      enablerepo: elrepo-kernel
+      state: present
+
+  - name: list kernels
+    shell: ls -1 /boot/vmlinuz-4*
+    ignore_errors: yes
+    register: kernel4
+
+  - debug: var=kernel4
+
+  - debug: var=kernel4.stdout_lines[0]
+    when: kernel4.rc==0
+
+  - name: set default kernel to v.4
+    shell: grubby --set-default={{kernel4.stdout_lines[0]}}
+    when: kernel4.rc==0

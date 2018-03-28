@@ -1,0 +1,4 @@
+---
+  - name: install docker
+    shell: curl https://get.docker.com | bash
+    

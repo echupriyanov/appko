@@ -1,0 +1,71 @@
+---
+  - hosts: localhost
+    connection: local
+    gather_facts: False
+    vars_files:
+      - ../common/vars.yml
+
+    vars:
+      aws_key_name: dmp-api-beeline
+      aws_env: demo
+      instance_subnet: '{{aws_subnet_ids["a"]}}'
+      instance_base_ami: '{{centos_ami}}'
+      instance_type: t2.medium
+      instance_sgs:
+        - dmp-env
+      instance_role: kargo18
+      instance_profile: ec2_dmp
+      enable_src_check: false
+      termination_protection: true
+      basename: kargo18
+      instance_root_size: 32
+      instance_datavol_size: 32
+      id_start: 1
+      id_end: 3
+      instance_volumes:
+        - device_name: /dev/sda1
+          volume_size: '{{instance_root_size}}'
+          volume_type: gp2
+          delete_on_termination: true
+        - device_name: /dev/sdc
+          volume_size: '{{instance_datavol_size}}'
+          volume_type: gp2
+          delete_on_termination: true
+        - device_name: /dev/sdd
+          volume_size: '{{instance_datavol_size}}'
+          volume_type: gp2
+          delete_on_termination: true
+
+    tasks:
+      - name: create an instance
+        include_tasks: ../common/create_instances.yml instance_name={{item}}
+        with_sequence: start='{{id_start}}' end='{{id_end}}' format='{{basename}}-%02d'
+
+      # - debug: msg={{ groups['launched']|map('extract', hostvars, 'private_ip')|list }}
+      # - debug: msg={{ groups['launched']|map('extract', hostvars, 'public_ip')|list }}
+
+      - name: create inventories folder if it doesn't exists yet
+        file: dest=inventories state=directory
+
+      - ec2_instance_facts:
+          region: "{{aws_region}}"
+          filters:
+            instance-state-name: running
+            subnet-id: '{{instance_subnet}}'
+            "tag:Role": '{{instance_role}}'
+        register: nodes
+
+      - debug: var=nodes
+
+      - template: src=../common/templates/hosts.j2 dest=inventories/{{instance_role}}
+
+  - name: Configure instance(s)
+    hosts: launched
+    become: True
+    remote_user: centos
+    gather_facts: True
+    vars_files:
+      - ../common/vars.yml
+    tasks:
+      - name: update instances
+        include: ../common/redhat7/post_create.yml

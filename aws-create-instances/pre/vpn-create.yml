@@ -1,0 +1,60 @@
+---
+  - hosts: localhost
+    connection: local
+    gather_facts: False
+    vars:
+      aws_key_name: dmp-api-beeline
+      aws_env: dmp-env
+      instance_subnet: '{{aws_subnet_ids["a"]}}'
+      instance_base_ami: '{{ubuntu_ami}}'
+      instance_type: t2.nano
+      instance_sgs:
+        - gateway
+      instance_role: gateway
+      instance_tp: yes
+      instance_sd_check: no
+      instance_profile: "gateway"
+      # hostgroup: '{{role}}'
+      instance_name: gateway
+      instance_root_size: 8
+      id_start: 1
+      id_end: 1
+    vars_files:
+      - ../common/vars.yml
+
+    tasks:
+      - name: create an instance
+        include: lib/create_instances.yml
+
+      # - debug: msg={{ groups['launched']|map('extract', hostvars, 'private_ip')|list }}
+      # - debug: msg={{ groups['launched']|map('extract', hostvars, 'public_ip')|list }}
+
+      - name: create inventories folder if it doesn't exists yet
+        file: dest=inventories state=directory
+
+      - ec2_remote_facts:
+          region: "{{aws_region}}"
+          filters:
+            instance-state-name: running
+            subnet-id: '{{instance_subnet}}'
+            "tag:Role": '{{instance_role}}'
+        register: nodes
+
+      - debug: var=nodes
+
+      - template: src=../common/templates/hosts.j2 dest=inventories/gateway
+
+  - name: fix ubuntu python issue
+    hosts: launched
+    gather_facts: False
+    tasks:
+    - name: install python 2
+      raw: test -e /usr/bin/python || (sudo apt -y update && sudo apt install -y python-minimal)
+
+  - name: Configure instance(s)
+    hosts: launched
+    become: True
+    gather_facts: True
+    tasks:
+      - name: update instances
+        include: lib/post_create.yml

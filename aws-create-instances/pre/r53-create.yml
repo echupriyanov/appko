@@ -1,0 +1,15 @@
+---
+  - hosts: localhost
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: create internal DNS zone
+        route53_zone:
+          vpc_id: "{{ aws_vpc_id }}"
+          vpc_region: "{{ aws_region }}"
+          zone: "{{ private_domain }}"
+          state: present
+        register: zone_out
+
+      - debug: var=zone_out

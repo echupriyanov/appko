@@ -1,0 +1,5 @@
+easy-rsa/keys/*
+inventories/*
+*retry
+notes.txt
+*.ovpn

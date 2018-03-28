@@ -1,0 +1,38 @@
+---
+  - name: set hostname
+    hostname: name='{{sysname}}.{{private_domain}}'
+
+  - name: update system
+    apt: update_cache=yes upgrade=dist
+
+  - name: install useful packages
+    apt: pkg={{item}} state=present
+    with_items:
+      - vim-nox
+      - python-pip
+      - ntp
+
+  - name: install jq
+    apt: pkg=jq state=present
+
+  - name: install AWS CLI
+    pip: name=awscli state=present
+
+  - name: update kernel
+    apt: pkg=linux-image-extra-virtual-lts-xenial state=present
+
+  - name: reboot host
+    shell: nohup bash -c "sleep 2s && reboot" &
+    register: reboot
+    # when: kernel.changed
+
+  - name: wait for host boot
+    local_action:
+      module: wait_for
+      host: "{{ inventory_hostname }}"
+      port: 22
+      delay: "{{ boot_wait | default(15) }}"
+      timeout: 120
+      state: started
+    become: false
+    when: reboot.changed

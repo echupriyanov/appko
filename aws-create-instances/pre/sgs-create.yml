@@ -1,0 +1,55 @@
+---
+  - hosts: localhost
+    connection: local
+    gather_facts: False
+
+    tasks:
+    - name: create gateway sg
+      ec2_group:
+        name: gateway
+        description: "Security Group for Gateway Instance"
+        vpc_id: '{{aws_vpc_id}}'
+        region: '{{aws_region}}'
+        rules:
+          - proto: udp
+            from_port: 60002
+            to_port: 60002
+            cidr_ip: 0.0.0.0/0
+
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+
+          - proto: all
+            cidr_ip: '{{ vpn_network }}'
+
+          - proto: icmp
+            from_port: 8
+            to_port: -1
+            cidr_ip: 95.84.146.26/32
+      register: sg_gateway
+
+    - name: create common sg
+      ec2_group:
+        name: dmp-env
+        description: "Security Group for DMP environment"
+        vpc_id: '{{aws_vpc_id}}'
+        region: '{{aws_region}}'
+        rules:
+          - proto: all
+            cidr_ip: '{{vpn_network}}'
+
+          - proto: all
+            group_name: gateway
+
+          - proto: all
+            group_name: dmp-env
+
+          # - proto: icmp
+          #   from_port: 8
+          #   to_port: -1
+          #   cidr_ip: 95.84.146.26/32
+      register: sg_common
+
+    - debug: var=sg_common

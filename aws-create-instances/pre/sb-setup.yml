@@ -1,0 +1,5 @@
+---
+  - hosts: sandbox
+    become: yes
+    tasks:
+      - include: lib/docker.yml

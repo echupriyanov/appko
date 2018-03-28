@@ -1,0 +1,14 @@
+---
+  - hosts: localhost
+    gather_facts: no
+    tasks:
+      - debug: var=client
+      - name: generate certs
+        shell: ./gencert.sh {{client}}
+        args:
+          creates: ../keys/{{client}}.crt
+        register: out
+
+      - debug: var=out
+      - name: generate OpenVPN Client config
+        template: src=client.ovpn.j2 dest="./{{client}}-ec1.ovpn"

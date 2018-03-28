@@ -1,0 +1,92 @@
+  - block:
+        - block:
+          - name: Provision a set of instances
+            ec2:
+              key_name: '{{aws_key_name}}'
+              region: '{{aws_region}}'
+              vpc_subnet_id: '{{instance_subnet}}'
+              group: '{{instance_sgs}}'
+              instance_type: '{{instance_type}}'
+              image: '{{ instance_base_ami }}'
+              instance_profile_name: '{{instance_profile}}'
+              source_dest_check: '{{ enable_src_check | default(true) }}'
+              termination_protection: '{{ tremination_protect | default(false)}}'
+              wait: true
+              exact_count: 1
+              count_tag:
+                Name: '{{instance_name}}'
+              instance_tags:
+                Name: '{{instance_name}}'
+                Role: '{{instance_role}}'
+                Env: '{{aws_env}}'
+                Owner: "{{lookup('env', 'USER')}}"
+              volumes:
+                - device_name: /dev/sda1
+                  volume_size: '{{instance_root_size}}'
+                  volume_type: gp2
+                  delete_on_termination: true
+            register: ec2
+          - name: store result
+            set_fact:
+              instances_info: '{{ec2}}'
+          when: instance_volumes is not defined
+
+        - block:
+          - name: Provision a set of instances
+            ec2:
+              key_name: '{{aws_key_name}}'
+              region: '{{aws_region}}'
+              vpc_subnet_id: '{{instance_subnet}}'
+              group: '{{instance_sgs}}'
+              instance_type: '{{instance_type}}'
+              image: '{{ instance_base_ami }}'
+              instance_profile_name: '{{instance_profile}}'
+              source_dest_check: '{{ enable_src_check | default(true) }}'
+              termination_protection: '{{ tremination_protect | default(false)}}'
+              wait: true
+              exact_count: 1
+              count_tag:
+                Name: '{{instance_name}}'
+              instance_tags:
+                Name: '{{instance_name}}'
+                Role: '{{instance_role}}'
+                Env: '{{aws_env}}'
+                Owner: "{{lookup('env', 'USER')}}"
+              volumes: '{{instance_volumes}}'
+            register: ec2
+          - name: store instance info
+            set_fact:
+              instances_info: '{{ec2}}'
+          when: instance_volumes is defined
+
+        - debug: var=instances_info
+
+        - name: create individual internal DNS records
+          route53:
+            command: create
+            private_zone: yes
+            overwrite: yes
+            zone: '{{private_domain}}'
+            record: '{{instance_name}}.{{private_domain}}'
+            type: A
+            ttl: 60
+            value: '{{instances_info.tagged_instances[0].private_ip}}'
+
+        - name: Add new instance to host group
+          add_host:
+            # hostname: '{{ instances_info.tagged_instances[0].private_ip }}'
+            hostname: '{{ instances_info.instances[0].private_ip }}'
+            groupname: launched
+            sysname: '{{instance_name}}'
+            private_ip: '{{ instances_info.tagged_instances[0].private_ip }}'
+            public_ip: '{{ instances_info.tagged_instances[0].public_ip }}'
+          when: instances_info.instances|length > 0
+
+        - debug: var=instances_info.tagged_instances[0].private_ip
+
+        - name: Wait for SSH to come up
+          wait_for: host={{ instances_info.tagged_instances[0].private_ip }} port=22 timeout=600 state=started
+
+        # - name: delay for cloudinit instance setup
+        #   pause:
+        #     seconds: 10
